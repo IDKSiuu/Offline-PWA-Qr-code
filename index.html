@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+  :root {
+    --bg:#f0f4ff;--surface:#fff;--surface2:#f7f9ff;--border:#e2e8f7;
+    --accent:#4361ee;--accent2:#3f37c9;--accent-light:#eef0ff;
+    --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+    --success:#10b981;--warning:#f59e0b;--error:#ef4444;
+    --radius:16px;
+    --shadow:0 4px 24px rgba(67,97,238,.10);
+    --shadow-lg:0 8px 40px rgba(67,97,238,.15);
+    --transition:.22s cubic-bezier(.4,0,.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+  /* ── PERMISSION MODAL ── */
+  .perm-modal{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;padding:24px}
+  .perm-overlay{position:absolute;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(6px)}
+  .perm-card{
+    position:relative;z-index:1;background:var(--surface);border-radius:24px;
+    padding:36px 28px;max-width:310px;width:100%;box-shadow:var(--shadow-lg);
+    text-align:center;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+  .perm-icon-wrap{
+    width:76px;height:76px;border-radius:22px;background:var(--accent-light);
+    display:flex;align-items:center;justify-content:center;font-size:34px;
+    margin:0 auto 18px;
+  }
+  .perm-title{font-size:18px;font-weight:700;margin-bottom:8px}
+  .perm-desc{font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:26px}
+  .perm-btns{display:flex;gap:10px}
+  .perm-deny{
+    flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);
+    background:var(--surface2);font-family:'Sora',sans-serif;font-size:14px;
+    font-weight:500;color:var(--text2);cursor:pointer;transition:var(--transition);
+  }
+  .perm-deny:hover{background:var(--border)}
+  .perm-allow{
+    flex:1;padding:13px;border-radius:11px;border:none;background:var(--accent);
+    font-family:'Sora',sans-serif;font-size:14px;font-weight:600;
+    color:#fff;cursor:pointer;transition:var(--transition);
+  }
+  .perm-allow:hover{background:var(--accent2);transform:translateY(-1px)}
+
+  /* ── SETTINGS ── */
+  #settings-btn{
+    position:fixed;top:18px;left:18px;z-index:1000;width:44px;height:44px;
+    border-radius:12px;background:var(--surface);border:1.5px solid var(--border);
+    box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;
+    justify-content:center;transition:var(--transition);color:var(--text2);
+  }
+  #settings-btn:hover{background:var(--accent-light);color:var(--accent);transform:rotate(30deg)}
+  #settings-overlay{position:fixed;inset:0;z-index:999;background:rgba(15,23,42,.35);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:var(--transition)}
+  #settings-overlay.open{opacity:1;pointer-events:all}
+  #settings-panel{
+    position:fixed;top:0;left:0;z-index:1001;width:320px;height:100vh;
+    background:var(--surface);border-right:1.5px solid var(--border);
+    box-shadow:var(--shadow-lg);padding:28px 24px;
+    transform:translateX(-100%);transition:.3s cubic-bezier(.4,0,.2,1);overflow-y:auto;
+  }
+  #settings-panel.open{transform:translateX(0)}
+  .settings-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+  .settings-title{font-size:18px;font-weight:700}
+  .settings-close{
+    width:32px;height:32px;border-radius:8px;background:var(--surface2);
+    border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    color:var(--text2);transition:var(--transition);
+  }
+  .settings-close:hover{background:var(--error);color:#fff}
+  .settings-section{margin-bottom:28px}
+  .settings-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px}
+  .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .lang-btn{
+    display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;
+    border:1.5px solid var(--border);background:var(--surface2);cursor:pointer;
+    font-family:'Sora',sans-serif;font-size:13px;font-weight:500;color:var(--text2);
+    transition:var(--transition);white-space:nowrap;
+  }
+  .lang-btn:hover,.lang-btn.active{border-color:var(--accent);background:var(--accent-light);color:var(--accent)}
+  .lang-flag{font-size:18px}
+  .color-themes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .theme-swatch{
+    width:100%;aspect-ratio:1;border-radius:10px;cursor:pointer;
+    border:2.5px solid transparent;transition:var(--transition);position:relative;overflow:hidden;
+  }
+  .theme-swatch.active{border-color:var(--text);transform:scale(.9)}
+  .theme-swatch::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;opacity:0;transition:var(--transition);text-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .theme-swatch.active::after{opacity:1}
+
+  /* ── HEADER ── */
+  .app-header{text-align:center;padding:48px 24px 28px}
+  .app-logo{
+    display:inline-flex;align-items:center;gap:10px;background:var(--surface);
+    border-radius:14px;padding:10px 18px;border:1.5px solid var(--border);
+    box-shadow:var(--shadow);margin-bottom:12px;
+  }
+  .logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
+  .app-name{font-size:17px;font-weight:700;letter-spacing:-.02em}
+  .app-tagline{font-size:13px;color:var(--text3)}
+
+  /* ── QUICK BAR ── */
+  .quick-bar{max-width:680px;margin:0 auto;padding:0 20px 32px}
+  .quick-bar-inner{
+    display:flex;background:var(--surface);border:1.5px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+    transition:box-shadow var(--transition);
+  }
+  .quick-bar-inner:focus-within{box-shadow:0 0 0 3px rgba(67,97,238,.18),var(--shadow);border-color:var(--accent)}
+  .quick-input{flex:1;border:none;outline:none;padding:15px 18px;font-family:'Sora',sans-serif;font-size:14px;color:var(--text);background:transparent}
+  .quick-input::placeholder{color:var(--text3)}
+  .quick-btn{
+    padding:12px 20px;background:var(--accent);border:none;color:#fff;cursor:pointer;
+    font-family:'Sora',sans-serif;font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:7px;transition:var(--transition);white-space:nowrap;
+  }
+  .quick-btn:hover{background:var(--accent2)}
+
+  /* ── TABS ── */
+  .tab-group{
+    display:flex;gap:6px;background:var(--surface);border:1.5px solid var(--border);
+    border-radius:var(--radius);padding:6px;margin-bottom:28px;box-shadow:var(--shadow);
+    overflow-x:auto;scrollbar-width:none;
+  }
+  .tab-group::-webkit-scrollbar{display:none}
+  .tab-btn{
+    flex:1 0 auto;padding:9px 16px;border-radius:10px;border:none;background:transparent;
+    cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:500;color:var(--text2);
+    transition:var(--transition);white-space:nowrap;display:flex;align-items:center;gap:6px;justify-content:center;
+  }
+  .tab-btn.active{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(67,97,238,.3)}
+  .tab-btn:not(.active):hover{background:var(--accent-light);color:var(--accent)}
+
+  /* ── TYPE GRID ── */
+  .type-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+    gap:12px;margin-bottom:8px;
+  }
+  .type-card{
+    background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+    padding:18px 14px;cursor:pointer;transition:var(--transition);
+    display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;
+    position:relative;overflow:hidden;
+  }
+  .type-card::before{content:'';position:absolute;inset:0;background:var(--accent-light);opacity:0;transition:var(--transition)}
+  .type-card:hover::before{opacity:1}
+  .type-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .type-card.active{border-color:var(--accent);background:var(--accent-light);box-shadow:0 0 0 3px rgba(67,97,238,.15)}
+  .type-icon{
+    width:46px;height:46px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-size:20px;position:relative;z-index:1;transition:var(--transition);
+  }
+  .type-card:hover .type-icon,.type-card.active .type-icon{transform:scale(1.1)}
+  .type-name{font-size:13px;font-weight:600;position:relative;z-index:1}
+  .type-desc{font-size:11px;color:var(--text3);position:relative;z-index:1}
+
+  /* ── INLINE FORM (injected into grid) ── */
+  .inline-form-wrapper{
+    grid-column:1 / -1;position:relative;padding-top:16px;
+    animation:expandDown .28s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes expandDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  .form-arrow{
+    position:absolute;top:7px;width:15px;height:15px;
+    background:var(--surface);border-left:1.5px solid var(--border);
+    border-top:1.5px solid var(--border);transform:translateX(-50%) rotate(45deg);
+    z-index:1;transition:left .15s ease;
+  }
+  .inline-form-close{
+    position:absolute;top:24px;right:24px;width:28px;height:28px;border-radius:8px;
+    border:none;background:var(--surface2);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;color:var(--text3);
+    font-size:14px;transition:var(--transition);z-index:2;
+  }
+  .inline-form-close:hover{background:var(--error);color:#fff}
+
+  /* ── FORM AREA ── */
+  .form-area{
+    background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+    padding:28px;box-shadow:var(--shadow);position:relative;
+  }
+  .form-title{font-size:15px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+  .form-row{margin-bottom:16px}
+  .form-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+  .form-input,.form-select,.form-textarea{
+    width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--border);
+    background:var(--surface2);font-family:'Sora',sans-serif;font-size:14px;
+    color:var(--text);outline:none;transition:var(--transition);
+  }
+  .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(67,97,238,.12)}
+  .form-textarea{resize:vertical;min-height:90px}
+  .file-drop{
+    border:2px dashed var(--border);border-radius:12px;padding:26px;
+    text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface2);
+  }
+  .file-drop:hover{border-color:var(--accent);background:var(--accent-light)}
+  .file-drop.drag{border-color:var(--accent);background:var(--accent-light)}
+  .file-drop-icon{font-size:28px;margin-bottom:6px}
+  .file-drop p{font-size:13px;color:var(--text2)}
+  .file-drop small{font-size:11px;color:var(--text3)}
+  .file-size-badge{
+    display:inline-flex;align-items:center;gap:4px;background:var(--warning);
+    color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;
+    margin-top:6px;
+  }
+  .generate-btn{
+    width:100%;padding:14px;background:var(--accent);color:#fff;border:none;
+    border-radius:12px;cursor:pointer;font-family:'Sora',sans-serif;font-size:15px;
+    font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:var(--transition);margin-top:8px;
+  }
+  .generate-btn:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(67,97,238,.3)}
+  .wifi-enc{display:flex;gap:8px}
+  .enc-btn{
+    flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--border);
+    background:var(--surface2);cursor:pointer;font-family:'Sora',sans-serif;
+    font-size:12px;font-weight:500;text-align:center;transition:var(--transition);color:var(--text2);
+  }
+  .enc-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* ── QR RESULT ── */
+  .qr-result{
+    background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+    padding:32px;box-shadow:var(--shadow);text-align:center;animation:slideUp .3s ease;
+  }
+  @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .qr-canvas-wrap{
+    display:inline-flex;align-items:center;justify-content:center;
+    background:#fff;padding:20px;border-radius:16px;border:1.5px solid var(--border);
+    box-shadow:0 4px 20px rgba(0,0,0,.06);margin-bottom:20px;
+  }
+  #qr-display{display:flex;align-items:center;justify-content:center}
+  #qr-display canvas{border-radius:4px}
+  .qr-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .qr-action-btn{
+    padding:10px 20px;border-radius:10px;border:1.5px solid var(--border);
+    background:var(--surface2);cursor:pointer;font-family:'Sora',sans-serif;
+    font-size:13px;font-weight:500;color:var(--text2);
+    display:flex;align-items:center;gap:6px;transition:var(--transition);
+  }
+  .qr-action-btn:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+  .qr-action-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .qr-action-btn.primary:hover{background:var(--accent2)}
+  .qr-data-label{
+    font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;
+    background:var(--surface2);border-radius:8px;padding:8px 12px;
+    margin-bottom:16px;word-break:break-all;max-width:400px;margin-inline:auto;
+  }
+
+  /* ── DIVIDER ── */
+  .divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--text3);font-size:12px}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* ── SCANNER ── */
+  .scanner-area{
+    background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+    padding:28px;box-shadow:var(--shadow);text-align:center;
+  }
+  #scanner-video-wrap{
+    position:relative;max-width:360px;margin:0 auto 20px;border-radius:16px;
+    overflow:hidden;border:2px solid var(--accent);box-shadow:var(--shadow-lg);
+  }
+  #scanner-video{width:100%;display:block}
+  .scan-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .scan-frame{width:190px;height:190px;position:relative}
+  .scan-corner{position:absolute;width:22px;height:22px;border-color:#fff;border-style:solid}
+  .scan-corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+  .scan-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+  .scan-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+  .scan-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+  .scan-line{position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,#fff,transparent);animation:scanLine 2s ease-in-out infinite}
+  @keyframes scanLine{0%,100%{top:10%}50%{top:85%}}
+  .scanner-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+  #scan-result{background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:16px;text-align:left;display:none;word-break:break-all}
+  #scan-result.show{display:block;animation:slideUp .25s ease}
+  .scan-result-label{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .scan-result-text{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)}
+  .upload-scan-drop{
+    border:2px dashed var(--border);border-radius:12px;padding:36px;
+    text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface2);margin-bottom:16px;
+  }
+  .upload-scan-drop:hover{border-color:var(--accent);background:var(--accent-light)}
+
+  /* ── TOAST ── */
+  .toast{
+    position:fixed;bottom:24px;right:24px;z-index:4000;
+    background:var(--text);color:#fff;padding:12px 20px;border-radius:12px;
+    font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);
+    transform:translateY(80px);opacity:0;transition:.3s cubic-bezier(.4,0,.2,1);
+    pointer-events:none;display:flex;align-items:center;gap:8px;max-width:320px;
+  }
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast.success{background:var(--success)}
+  .toast.error{background:var(--error)}
+
+  /* ── THEMES ── */
+  body.theme-ocean{--bg:#f0f9ff;--accent:#0ea5e9;--accent2:#0284c7;--accent-light:#e0f2fe;--border:#bae6fd}
+  body.theme-forest{--bg:#f0fdf4;--accent:#22c55e;--accent2:#16a34a;--accent-light:#dcfce7;--border:#bbf7d0}
+  body.theme-sunset{--bg:#fff7ed;--accent:#f97316;--accent2:#ea580c;--accent-light:#ffedd5;--border:#fed7aa}
+  body.theme-rose{--bg:#fff1f2;--accent:#f43f5e;--accent2:#e11d48;--accent-light:#ffe4e6;--border:#fecdd3}
+  body.theme-violet{--bg:#faf5ff;--accent:#a855f7;--accent2:#9333ea;--accent-light:#f3e8ff;--border:#e9d5ff}
+  body.theme-dark{
+    --bg:#0f172a;--surface:#1e293b;--surface2:#0f172a;--border:#334155;
+    --accent:#6366f1;--accent2:#4f46e5;--accent-light:#1e1b4b;
+    --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
+    --shadow:0 4px 24px rgba(0,0,0,.4);--shadow-lg:0 8px 40px rgba(0,0,0,.5);
+  }
+  body.theme-dark .form-input,body.theme-dark .form-select,body.theme-dark .form-textarea{color:var(--text)}
+  body.theme-dark .qr-canvas-wrap{background:#1e293b}
+
+  /* ── COLOR PICKER ── */
+  .color-preview{width:38px;height:38px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;overflow:hidden;flex-shrink:0}
+  .color-preview input[type=color]{width:140%;height:140%;margin:-20%;border:none;cursor:pointer}
+
+  .hidden{display:none!important}
+  .main-content{max-width:900px;margin:0 auto;padding:0 20px 60px}
+  .tab-content{display:none}
+  .tab-content.active{display:block}
+
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- ── PERMISSION MODAL ── -->
+<div id="permission-modal" class="hidden perm-modal">
+  <div class="perm-overlay" onclick="denyPermission()"></div>
+  <div class="perm-card">
+    <div class="perm-icon-wrap" id="perm-icon">📷</div>
+    <div class="perm-title" id="perm-title">Camera Access</div>
+    <div class="perm-desc" id="perm-desc">QR Studio needs your camera to scan QR codes in real time. Your video is never stored or uploaded.</div>
+    <div class="perm-btns">
+      <button class="perm-deny" onclick="denyPermission()" data-i18n="notNow">Not Now</button>
+      <button class="perm-allow" onclick="grantPermission()" data-i18n="allow">Allow Access</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS BUTTON ── -->
+<button id="settings-btn" title="Settings">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+</button>
+
+<!-- ── SETTINGS OVERLAY ── -->
+<div id="settings-overlay"></div>
+
+<!-- ── SETTINGS PANEL ── -->
+<div id="settings-panel">
+  <div class="settings-header">
+    <span class="settings-title" data-i18n="settings">⚙️ Settings</span>
+    <button class="settings-close" id="settings-close-btn">✕</button>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label" data-i18n="language">Language</div>
+    <div class="lang-grid">
+      <button class="lang-btn active" data-lang="en" onclick="setLang('en',this)"><span class="lang-flag">🇬🇧</span> English</button>
+      <button class="lang-btn" data-lang="vi" onclick="setLang('vi',this)"><span class="lang-flag">🇻🇳</span> Tiếng Việt</button>
+      <button class="lang-btn" data-lang="es" onclick="setLang('es',this)"><span class="lang-flag">🇪🇸</span> Español</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr',this)"><span class="lang-flag">🇫🇷</span> Français</button>
+      <button class="lang-btn" data-lang="it" onclick="setLang('it',this)"><span class="lang-flag">🇮🇹</span> Italiano</button>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label" data-i18n="theme">Color Theme</div>
+    <div class="color-themes">
+      <div class="theme-swatch active" style="background:linear-gradient(135deg,#4361ee,#818cf8)" data-theme="" onclick="setTheme('',this)" title="Indigo"></div>
+      <div class="theme-swatch" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)" data-theme="ocean" onclick="setTheme('ocean',this)" title="Ocean"></div>
+      <div class="theme-swatch" style="background:linear-gradient(135deg,#22c55e,#4ade80)" data-theme="forest" onclick="setTheme('forest',this)" title="Forest"></div>
+      <div class="theme-swatch" style="background:linear-gradient(135deg,#f97316,#fbbf24)" data-theme="sunset" onclick="setTheme('sunset',this)" title="Sunset"></div>
+      <div class="theme-swatch" style="background:linear-gradient(135deg,#f43f5e,#fb7185)" data-theme="rose" onclick="setTheme('rose',this)" title="Rose"></div>
+      <div class="theme-swatch" style="background:linear-gradient(135deg,#a855f7,#c084fc)" data-theme="violet" onclick="setTheme('violet',this)" title="Violet"></div>
+      <div class="theme-swatch" style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155" data-theme="dark" onclick="setTheme('dark',this)" title="Dark"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label" data-i18n="qrColor">QR Code Colors</div>
+    <div class="form-row">
+      <label class="form-label" data-i18n="darkColor">Dark Color</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="color-preview"><input type="color" id="qr-dark-color" value="#000000"></div>
+        <span style="font-size:13px;color:var(--text2);font-family:'JetBrains Mono',monospace" id="dark-hex">#000000</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label" data-i18n="lightColor">Light Color</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="color-preview"><input type="color" id="qr-light-color" value="#ffffff"></div>
+        <span style="font-size:13px;color:var(--text2);font-family:'JetBrains Mono',monospace" id="light-hex">#ffffff</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label" data-i18n="qrSize">QR Code Size</div>
+    <input type="range" id="qr-size" min="128" max="512" value="256" step="32" style="width:100%;accent-color:var(--accent)">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px">
+      <span>128px</span><span id="size-label">256px</span><span>512px</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<div class="app-header">
+  <div class="app-logo">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3" rx=".5"/>
+        <rect x="19" y="14" width="2" height="2" rx=".5"/><rect x="14" y="19" width="2" height="2" rx=".5"/>
+        <rect x="18" y="18" width="3" height="3" rx=".5"/>
+      </svg>
+    </div>
+    <span class="app-name">QR Studio</span>
+  </div>
+  <div class="app-tagline" data-i18n="tagline">Generate & Scan QR codes — fully offline</div>
+</div>
+
+<!-- ── QUICK BAR ── -->
+<div class="quick-bar">
+  <div class="quick-bar-inner">
+    <input class="quick-input" id="quick-input" type="text" data-i18n-placeholder="quickPlaceholder" placeholder="Paste or type a URL / text to generate QR…">
+    <button class="quick-btn" onclick="quickGenerate()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
+      <span data-i18n="generate">Generate</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── MAIN ── -->
+<div class="main-content">
+
+  <!-- Tabs -->
+  <div class="tab-group">
+    <button class="tab-btn active" onclick="switchTab('generate',this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="17" y="17" width="4" height="4"/></svg>
+      <span data-i18n="generate">Generate</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('scan',this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V6a1 1 0 0 1 1-1h3M15 5h3a1 1 0 0 1 1 1v3M21 15v3a1 1 0 0 1-1 1h-3M9 19H6a1 1 0 0 1-1-1v-3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+      <span data-i18n="scan">Scan</span>
+    </button>
+  </div>
+
+  <!-- GENERATE TAB -->
+  <div class="tab-content active" id="tab-generate">
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:14px" data-i18n="chooseType">Choose QR type</div>
+    <div class="type-grid" id="type-grid"></div>
+
+    <!-- QR Result -->
+    <div id="qr-result-area" class="hidden" style="margin-top:24px">
+      <div class="divider"><span data-i18n="yourQR">Your QR Code</span></div>
+      <div class="qr-result">
+        <div class="qr-canvas-wrap"><div id="qr-display"></div></div>
+        <div class="qr-data-label" id="qr-data-label"></div>
+        <div class="qr-actions">
+          <button class="qr-action-btn" onclick="copyQRImage()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span data-i18n="copy">Copy</span>
+          </button>
+          <button class="qr-action-btn primary" onclick="downloadQR()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="download">Download PNG</span>
+          </button>
+          <button class="qr-action-btn" onclick="resetQR()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+            <span data-i18n="new">New</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCAN TAB -->
+  <div class="tab-content" id="tab-scan">
+    <div class="scanner-area">
+      <div style="font-size:15px;font-weight:700;margin-bottom:20px" data-i18n="scanQR">Scan QR Code</div>
+
+      <div id="scanner-video-wrap" class="hidden">
+        <video id="scanner-video" playsinline muted autoplay></video>
+        <canvas id="scanner-canvas" class="hidden"></canvas>
+        <div class="scan-overlay">
+          <div class="scan-frame">
+            <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+            <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+            <div class="scan-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scanner-btns">
+        <button class="qr-action-btn" id="start-camera-btn" onclick="requestPermission('camera', startCameraImpl)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <span data-i18n="openCamera">Open Camera</span>
+        </button>
+        <button class="qr-action-btn hidden" id="stop-camera-btn" onclick="stopCamera()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg>
+          <span data-i18n="stop">Stop</span>
+        </button>
+      </div>
+
+      <div class="divider"><span data-i18n="or">or</span></div>
+
+      <div class="upload-scan-drop" id="upload-scan-drop" onclick="requestPermission('files', triggerScanUpload)">
+        <div class="file-drop-icon">📷</div>
+        <p data-i18n="uploadScan">Upload an image with a QR code</p>
+        <small data-i18n="uploadScanSub">Click or drag & drop PNG / JPG</small>
+        <input type="file" id="scan-file-input" accept="image/*" class="hidden" onchange="scanFromFile(event)">
+      </div>
+
+      <div id="scan-result">
+        <div class="scan-result-label" data-i18n="result">Result</div>
+        <div class="scan-result-text" id="scan-result-text"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="qr-action-btn" onclick="copyScanResult()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span data-i18n="copy">Copy</span>
+          </button>
+          <button class="qr-action-btn hidden" id="open-link-btn" onclick="openScanResult()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <span data-i18n="open">Open Link</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── i18n ──────────────────────────────────────────────────────────────
+const i18n = {
+  en:{
+    settings:'⚙️ Settings',language:'Language',theme:'Color Theme',
+    qrColor:'QR Code Colors',darkColor:'Dark Color',lightColor:'Light Color',
+    qrSize:'QR Code Size',tagline:'Generate & Scan QR codes — fully offline',
+    quickPlaceholder:'Paste or type a URL / text to generate QR…',
+    generate:'Generate',scan:'Scan',chooseType:'Choose QR type',
+    yourQR:'Your QR Code',copy:'Copy',download:'Download PNG',new:'New',
+    scanQR:'Scan QR Code',openCamera:'Open Camera',stop:'Stop',
+    uploadScan:'Upload an image with a QR code',uploadScanSub:'Click or drag & drop PNG / JPG',
+    result:'Result',open:'Open Link',or:'or',
+    allow:'Allow Access',notNow:'Not Now',
+    permCameraTitle:'Camera Access Needed',
+    permCameraDesc:'QR Studio needs your camera to scan QR codes in real time. Your video is never stored or uploaded.',
+    permFilesTitle:'File Access Needed',
+    permFilesDesc:'QR Studio needs access to your files to scan QR codes from images. Files are processed locally and never uploaded.',
+    wifi:'Wi-Fi',url:'URL',text:'Text',pdf:'PDF',image:'Image',video:'Video',audio:'Audio',pptx:'Presentation',
+    wifiNote:'Connect instantly',urlNote:'Link to any webpage',textNote:'Any plain text',
+    pdfNote:'Link to PDF file',imageNote:'Link to image',videoNote:'Link to video',
+    audioNote:'Link to audio',pptxNote:'Link to presentation',
+    enterWifi:'Wi-Fi Details',enterUrl:'Website URL',enterText:'Your Text',enterFileUrl:'File Link',
+    ssid:'Network Name (SSID)',password:'Password',encryption:'Encryption',hidden:'Hidden Network',
+    urlLabel:'Website URL',textLabel:'Text Content',
+    fileTooLarge:'File too large',useUrlInstead:'Use a URL link instead',
+    maxFileSizeNote:'Max 2 KB for direct QR encoding',
+    ph:{ssid:'MyHomeNetwork',password:'••••••••',url:'https://example.com',text:'Type anything here…',fileUrl:'https://example.com/file.pdf'}
+  },
+  vi:{
+    settings:'⚙️ Cài đặt',language:'Ngôn ngữ',theme:'Màu giao diện',
+    qrColor:'Màu mã QR',darkColor:'Màu tối',lightColor:'Màu sáng',
+    qrSize:'Kích thước mã QR',tagline:'Tạo & Quét mã QR — hoàn toàn ngoại tuyến',
+    quickPlaceholder:'Dán hoặc nhập URL / văn bản để tạo QR…',
+    generate:'Tạo mã',scan:'Quét mã',chooseType:'Chọn loại mã QR',
+    yourQR:'Mã QR của bạn',copy:'Sao chép',download:'Tải PNG',new:'Mới',
+    scanQR:'Quét mã QR',openCamera:'Mở camera',stop:'Dừng',
+    uploadScan:'Tải ảnh chứa mã QR',uploadScanSub:'Nhấp hoặc kéo thả PNG / JPG',
+    result:'Kết quả',open:'Mở liên kết',or:'hoặc',
+    allow:'Cho phép',notNow:'Để sau',
+    permCameraTitle:'Cần quyền truy cập Camera',
+    permCameraDesc:'QR Studio cần camera để quét mã QR theo thời gian thực. Video của bạn không bao giờ được lưu hoặc tải lên.',
+    permFilesTitle:'Cần quyền truy cập Tệp',
+    permFilesDesc:'QR Studio cần quyền truy cập tệp để quét mã QR từ hình ảnh. Tệp được xử lý cục bộ và không bao giờ được tải lên.',
+    wifi:'Wi-Fi',url:'URL',text:'Văn bản',pdf:'PDF',image:'Hình ảnh',video:'Video',audio:'Âm thanh',pptx:'Bài thuyết trình',
+    wifiNote:'Kết nối ngay',urlNote:'Liên kết trang web',textNote:'Văn bản bất kỳ',
+    pdfNote:'Liên kết PDF',imageNote:'Liên kết hình ảnh',videoNote:'Liên kết video',
+    audioNote:'Liên kết âm thanh',pptxNote:'Liên kết bài thuyết trình',
+    enterWifi:'Thông tin Wi-Fi',enterUrl:'Địa chỉ website',enterText:'Văn bản của bạn',enterFileUrl:'Liên kết tệp',
+    ssid:'Tên mạng (SSID)',password:'Mật khẩu',encryption:'Mã hóa',hidden:'Mạng ẩn',
+    urlLabel:'Địa chỉ website',textLabel:'Nội dung văn bản',
+    fileTooLarge:'Tệp quá lớn',useUrlInstead:'Hãy dùng liên kết URL thay thế',
+    maxFileSizeNote:'Tối đa 2 KB để mã hóa QR trực tiếp',
+    ph:{ssid:'MangNhaCuaToi',password:'••••••••',url:'https://vi.du.com',text:'Nhập nội dung…',fileUrl:'https://vi.du.com/file.pdf'}
+  },
+  es:{
+    settings:'⚙️ Ajustes',language:'Idioma',theme:'Tema de color',
+    qrColor:'Colores del QR',darkColor:'Color oscuro',lightColor:'Color claro',
+    qrSize:'Tamaño del QR',tagline:'Genera y escanea QR — sin conexión',
+    quickPlaceholder:'Pega o escribe URL / texto para QR…',
+    generate:'Generar',scan:'Escanear',chooseType:'Elige tipo de QR',
+    yourQR:'Tu código QR',copy:'Copiar',download:'Descargar PNG',new:'Nuevo',
+    scanQR:'Escanear QR',openCamera:'Abrir cámara',stop:'Detener',
+    uploadScan:'Sube una imagen con QR',uploadScanSub:'Clic o arrastra PNG / JPG',
+    result:'Resultado',open:'Abrir enlace',or:'o',
+    allow:'Permitir',notNow:'Ahora no',
+    permCameraTitle:'Acceso a Cámara',
+    permCameraDesc:'QR Studio necesita tu cámara para escanear QR en tiempo real. Tu video nunca se almacena.',
+    permFilesTitle:'Acceso a Archivos',
+    permFilesDesc:'QR Studio necesita acceso a archivos para escanear QR desde imágenes. Los archivos se procesan localmente.',
+    wifi:'Wi-Fi',url:'URL',text:'Texto',pdf:'PDF',image:'Imagen',video:'Video',audio:'Audio',pptx:'Presentación',
+    wifiNote:'Conéctate al instante',urlNote:'Enlace a página web',textNote:'Texto libre',
+    pdfNote:'Enlace a PDF',imageNote:'Enlace a imagen',videoNote:'Enlace a video',
+    audioNote:'Enlace a audio',pptxNote:'Enlace a presentación',
+    enterWifi:'Datos Wi-Fi',enterUrl:'URL del sitio',enterText:'Tu texto',enterFileUrl:'URL del archivo',
+    ssid:'Nombre de red',password:'Contraseña',encryption:'Cifrado',hidden:'Red oculta',
+    urlLabel:'URL del sitio web',textLabel:'Contenido de texto',
+    fileTooLarge:'Archivo demasiado grande',useUrlInstead:'Usa un enlace URL en su lugar',
+    maxFileSizeNote:'Máx 2 KB para codificación QR directa',
+    ph:{ssid:'MiRedCasa',password:'••••••••',url:'https://ejemplo.com',text:'Escribe algo…',fileUrl:'https://ejemplo.com/archivo.pdf'}
+  },
+  fr:{
+    settings:'⚙️ Paramètres',language:'Langue',theme:'Thème couleur',
+    qrColor:'Couleurs QR',darkColor:'Couleur sombre',lightColor:'Couleur claire',
+    qrSize:'Taille du QR',tagline:'Générez et scannez des QR — hors ligne',
+    quickPlaceholder:'Collez ou tapez une URL / texte…',
+    generate:'Générer',scan:'Scanner',chooseType:'Type de QR',
+    yourQR:'Votre QR Code',copy:'Copier',download:'Télécharger PNG',new:'Nouveau',
+    scanQR:'Scanner un QR',openCamera:'Ouvrir la caméra',stop:'Arrêter',
+    uploadScan:'Téléversez une image avec QR',uploadScanSub:'Cliquez ou glissez PNG / JPG',
+    result:'Résultat',open:'Ouvrir le lien',or:'ou',
+    allow:'Autoriser',notNow:'Pas maintenant',
+    permCameraTitle:'Accès Caméra Requis',
+    permCameraDesc:'QR Studio a besoin de votre caméra pour scanner les QR en temps réel. Votre vidéo n\'est jamais stockée.',
+    permFilesTitle:'Accès Fichiers Requis',
+    permFilesDesc:'QR Studio a besoin d\'accéder à vos fichiers pour scanner les QR. Les fichiers sont traités localement.',
+    wifi:'Wi-Fi',url:'URL',text:'Texte',pdf:'PDF',image:'Image',video:'Vidéo',audio:'Audio',pptx:'Présentation',
+    wifiNote:'Connectez-vous vite',urlNote:'Lien vers une page',textNote:'Texte libre',
+    pdfNote:'Lien vers PDF',imageNote:'Lien vers image',videoNote:'Lien vers vidéo',
+    audioNote:'Lien vers audio',pptxNote:'Lien vers présentation',
+    enterWifi:'Infos Wi-Fi',enterUrl:'URL du site',enterText:'Votre texte',enterFileUrl:"URL du fichier",
+    ssid:'Nom du réseau',password:'Mot de passe',encryption:'Chiffrement',hidden:'Réseau caché',
+    urlLabel:'URL du site web',textLabel:'Contenu texte',
+    fileTooLarge:'Fichier trop grand',useUrlInstead:'Utilisez un lien URL à la place',
+    maxFileSizeNote:'Max 2 Ko pour encodage QR direct',
+    ph:{ssid:'MonReseauMaison',password:'••••••••',url:'https://exemple.com',text:'Tapez quelque chose…',fileUrl:'https://exemple.com/fichier.pdf'}
+  },
+  it:{
+    settings:'⚙️ Impostazioni',language:'Lingua',theme:'Tema colore',
+    qrColor:'Colori QR',darkColor:'Colore scuro',lightColor:'Colore chiaro',
+    qrSize:'Dimensione QR',tagline:'Genera e scansiona QR — offline',
+    quickPlaceholder:'Incolla o digita URL / testo…',
+    generate:'Genera',scan:'Scansiona',chooseType:'Tipo di QR',
+    yourQR:'Il tuo QR Code',copy:'Copia',download:'Scarica PNG',new:'Nuovo',
+    scanQR:'Scansiona QR',openCamera:'Apri fotocamera',stop:'Ferma',
+    uploadScan:"Carica un'immagine con QR",uploadScanSub:'Clicca o trascina PNG / JPG',
+    result:'Risultato',open:'Apri link',or:'oppure',
+    allow:'Consenti',notNow:'Non ora',
+    permCameraTitle:'Accesso Fotocamera',
+    permCameraDesc:'QR Studio ha bisogno della fotocamera per scansionare i QR in tempo reale. Il video non viene mai memorizzato.',
+    permFilesTitle:'Accesso File',
+    permFilesDesc:'QR Studio ha bisogno di accedere ai file per scansionare QR dalle immagini. I file vengono elaborati localmente.',
+    wifi:'Wi-Fi',url:'URL',text:'Testo',pdf:'PDF',image:'Immagine',video:'Video',audio:'Audio',pptx:'Presentazione',
+    wifiNote:'Connettiti subito',urlNote:'Link a pagina web',textNote:'Testo libero',
+    pdfNote:'Link a PDF',imageNote:'Link a immagine',videoNote:'Link a video',
+    audioNote:'Link a audio',pptxNote:'Link a presentazione',
+    enterWifi:'Dati Wi-Fi',enterUrl:'URL sito',enterText:'Il tuo testo',enterFileUrl:'URL file',
+    ssid:'Nome rete (SSID)',password:'Password',encryption:'Crittografia',hidden:'Rete nascosta',
+    urlLabel:'URL sito web',textLabel:'Contenuto testo',
+    fileTooLarge:'File troppo grande',useUrlInstead:'Usa un link URL al posto',
+    maxFileSizeNote:'Max 2 KB per codifica QR diretta',
+    ph:{ssid:'MiaReteHome',password:'••••••••',url:'https://esempio.com',text:'Scrivi qualcosa…',fileUrl:'https://esempio.com/file.pdf'}
+  }
+};
+
+let lang = 'en', t = i18n.en;
+let qrDarkColor = '#000000', qrLightColor = '#ffffff', qrSize = 256;
+let activeType = null, activeCardEl = null;
+let scanStream = null, scanInterval = null, lastScanResult = '';
+let pendingPermissionCallback = null;
+
+const MAX_FILE_BYTES = 2048; // 2 KB — QR codes max ~2.9 KB total
+
+const types = [
+  {id:'wifi', icon:'📶', color:'#4361ee', bg:'#eef0ff'},
+  {id:'url',  icon:'🔗', color:'#0ea5e9', bg:'#e0f2fe'},
+  {id:'text', icon:'📝', color:'#22c55e', bg:'#dcfce7'},
+  {id:'pdf',  icon:'📄', color:'#ef4444', bg:'#fee2e2'},
+  {id:'image',icon:'🖼️', color:'#f97316', bg:'#ffedd5'},
+  {id:'video',icon:'🎬', color:'#a855f7', bg:'#f3e8ff'},
+  {id:'audio',icon:'🎵', color:'#ec4899', bg:'#fce7f3'},
+  {id:'pptx', icon:'📊', color:'#f59e0b', bg:'#fef3c7'},
+];
+
+// ── LANGUAGE ──────────────────────────────────────────────
+function setLang(l, btn) {
+  lang = l; t = i18n[l];
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyTranslations();
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n; if (t[k]) el.textContent = t[k];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.dataset.i18nPlaceholder; if (t[k]) el.placeholder = t[k];
+  });
+  removeInlineForm();
+  renderTypeGrid();
+  if (activeType) {
+    const card = document.querySelector(`.type-card[data-type="${activeType}"]`);
+    if (card) { activeCardEl = card; insertInlineForm(activeType, card); }
+  }
+}
+
+// ── THEMES ────────────────────────────────────────────────
+function setTheme(theme, el) {
+  ['theme-ocean','theme-forest','theme-sunset','theme-rose','theme-violet','theme-dark']
+    .forEach(c => document.body.classList.remove(c));
+  if (theme) document.body.classList.add('theme-' + theme);
+  document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── TYPE GRID ─────────────────────────────────────────────
+function renderTypeGrid() {
+  document.getElementById('type-grid').innerHTML = types.map(tp => `
+    <div class="type-card ${activeType===tp.id?'active':''}" data-type="${tp.id}" onclick="selectType('${tp.id}',this)">
+      <div class="type-icon" style="background:${tp.bg};color:${tp.color}">${tp.icon}</div>
+      <div class="type-name">${t[tp.id]||tp.id}</div>
+      <div class="type-desc">${t[tp.id+'Note']||''}</div>
+    </div>`).join('');
+}
+
+// ── FIX 1: INLINE FORM ───────────────────────────────────
+function selectType(id, cardEl) {
+  if (activeType === id) {
+    // Toggle off — same card clicked again
+    activeType = null; activeCardEl = null;
+    removeInlineForm();
+    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
+    document.getElementById('qr-result-area').classList.add('hidden');
+    return;
+  }
+  activeType = id; activeCardEl = cardEl;
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
+  cardEl.classList.add('active');
+  document.getElementById('qr-result-area').classList.add('hidden');
+  insertInlineForm(id, cardEl);
+}
+
+function removeInlineForm() {
+  const f = document.getElementById('inline-form');
+  if (f) f.remove();
+}
+
+function insertInlineForm(id, cardEl) {
+  removeInlineForm();
+  const wrapper = document.createElement('div');
+  wrapper.id = 'inline-form';
+  wrapper.className = 'inline-form-wrapper';
+  wrapper.innerHTML = `<div class="form-arrow" id="form-arrow"></div>${getFormHTML(id)}`;
+
+  // Insert right after the clicked card in the grid
+  cardEl.after(wrapper);
+
+  // Position arrow to point at the center of the clicked card
+  requestAnimationFrame(() => {
+    const cardRect = cardEl.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const rawLeft = cardRect.left - wrapperRect.left + cardRect.width / 2;
+    const clamped = Math.max(20, Math.min(rawLeft, wrapper.offsetWidth - 20));
+    const arrow = document.getElementById('form-arrow');
+    if (arrow) arrow.style.left = clamped + 'px';
+    wrapper.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  });
+}
+
+function closeInlineForm() {
+  activeType = null; activeCardEl = null;
+  removeInlineForm();
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
+}
+
+// ── FORM HTML ─────────────────────────────────────────────
+function getFormHTML(id) {
+  const ph = t.ph || i18n.en.ph;
+  const closeBtnHTML = `<button class="inline-form-close" onclick="closeInlineForm()" title="Close">✕</button>`;
+
+  if (id === 'wifi') {
+    return `<div class="form-area">
+      ${closeBtnHTML}
+      <div class="form-title">📶 ${t.enterWifi||'Wi-Fi Details'}</div>
+      <div class="form-row"><label class="form-label">${t.ssid}</label>
+        <input class="form-input" id="f-ssid" placeholder="${ph.ssid}">
+      </div>
+      <div class="form-row"><label class="form-label">${t.password}</label>
+        <input class="form-input" id="f-pass" type="password" placeholder="${ph.password}">
+      </div>
+      <div class="form-row"><label class="form-label">${t.encryption}</label>
+        <div class="wifi-enc">
+          <div class="enc-btn active" onclick="setEnc('WPA',this)">WPA/WPA2</div>
+          <div class="enc-btn" onclick="setEnc('WEP',this)">WEP</div>
+          <div class="enc-btn" onclick="setEnc('nopass',this)">None</div>
+        </div>
+        <input type="hidden" id="f-enc" value="WPA">
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="f-hidden" style="accent-color:var(--accent);width:16px;height:16px">
+        <label for="f-hidden" class="form-label" style="margin:0">${t.hidden}</label>
+      </div>
+      <button class="generate-btn" onclick="generateWifi()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
+        ${t.generate}
+      </button>
+    </div>`;
+  }
+
+  if (id === 'text') {
+    return `<div class="form-area">
+      ${closeBtnHTML}
+      <div class="form-title">📝 ${t.enterText||'Your Text'}</div>
+      <div class="form-row"><label class="form-label">${t.textLabel}</label>
+        <textarea class="form-textarea" id="f-text" placeholder="${ph.text}"></textarea>
+      </div>
+      <button class="generate-btn" onclick="generateText()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
+        ${t.generate}
+      </button>
+    </div>`;
+  }
+
+  // URL / file types
+  const iconMap = {url:'🔗',pdf:'📄',image:'🖼️',video:'🎬',audio:'🎵',pptx:'📊'};
+  const titleMap = {url:t.enterUrl,pdf:t.enterFileUrl,image:t.enterFileUrl,video:t.enterFileUrl,audio:t.enterFileUrl,pptx:t.enterFileUrl};
+  const phMap = {url:ph.url,pdf:ph.fileUrl,image:ph.fileUrl.replace('pdf','jpg'),video:ph.fileUrl.replace('pdf','mp4'),audio:ph.fileUrl.replace('pdf','mp3'),pptx:ph.fileUrl.replace('pdf','pptx')};
+  const acceptMap = {url:'',pdf:'application/pdf,.pdf',image:'image/*',video:'video/*',audio:'audio/*',pptx:'.pptx,.ppt'};
+  const showUpload = id !== 'url';
+
+  return `<div class="form-area">
+    ${closeBtnHTML}
+    <div class="form-title">${iconMap[id]||'🔗'} ${titleMap[id]||t.enterUrl}</div>
+    <div class="form-row"><label class="form-label">${id==='url'?t.urlLabel:'URL'}</label>
+      <input class="form-input" id="f-url" placeholder="${phMap[id]||ph.url}">
+    </div>
+    ${showUpload ? `
+    <div class="divider"><span>${t.or}</span></div>
+    <div class="file-drop" onclick="requestPermission('files',()=>document.getElementById('f-file-${id}').click())" id="file-drop-${id}">
+      <div class="file-drop-icon">${iconMap[id]}</div>
+      <p>${t.uploadScan||'Upload a file'}</p>
+      <small id="file-name-${id}">${t.uploadScanSub||'Click or drag & drop'}</small>
+      <div><span class="file-size-badge">⚠️ ${t.maxFileSizeNote||'Max 2 KB'}</span></div>
+      <input type="file" id="f-file-${id}" class="hidden" accept="${acceptMap[id]||'*'}" onchange="handleFileUpload('${id}',this)">
+    </div>` : ''}
+    <button class="generate-btn" onclick="generateURL('${id}')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
+      ${t.generate}
+    </button>
+  </div>`;
+}
+
+function setEnc(val, el) {
+  document.getElementById('f-enc').value = val;
+  document.querySelectorAll('.enc-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── FIX 2: FILE SIZE HANDLING ─────────────────────────────
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  return (b / 1024).toFixed(1) + ' KB';
+}
+
+function handleFileUpload(type, input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+
+  if (file.size > MAX_FILE_BYTES) {
+    showToast(`⚠️ ${t.fileTooLarge||'File too large'} (${formatBytes(file.size)}) — max is 2 KB. ${t.useUrlInstead||'Use a URL link instead.'}`, 'error', 5000);
+    input.value = '';
+    const label = document.getElementById('file-name-'+type);
+    if (label) label.textContent = t.uploadScanSub || 'Click or drag & drop';
+    const drop = document.getElementById('file-drop-'+type);
+    if (drop) { drop.style.borderColor=''; drop.style.background=''; }
+    return;
+  }
+
+  const label = document.getElementById('file-name-'+type);
+  if (label) label.textContent = '✅ ' + file.name + ' (' + formatBytes(file.size) + ')';
+  const drop = document.getElementById('file-drop-'+type);
+  if (drop) { drop.style.borderColor='var(--success)'; drop.style.background='#f0fdf4'; }
+  window['_file_'+type] = file;
+}
+
+// ── GENERATE ──────────────────────────────────────────────
+function makeQR(data, label) {
+  document.getElementById('qr-result-area').classList.remove('hidden');
+  const display = document.getElementById('qr-display');
+  display.innerHTML = '';
+  new QRCode(display, {
+    text: data, width: qrSize, height: qrSize,
+    colorDark: qrDarkColor, colorLight: qrLightColor,
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  const short = label.length > 60 ? label.substring(0,57)+'…' : label;
+  document.getElementById('qr-data-label').textContent = short;
+  document.getElementById('qr-result-area').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function quickGenerate() {
+  const val = document.getElementById('quick-input').value.trim();
+  if (!val) { showToast('⚠️ Enter something first', 'error'); return; }
+  makeQR(val, val);
+}
+
+function generateWifi() {
+  const ssid = document.getElementById('f-ssid').value.trim();
+  if (!ssid) { showToast('⚠️ SSID required', 'error'); return; }
+  const pass = document.getElementById('f-pass').value;
+  const enc = document.getElementById('f-enc').value;
+  const hidden = document.getElementById('f-hidden').checked ? 'true' : 'false';
+  makeQR(`WIFI:T:${enc};S:${ssid};P:${pass};H:${hidden};;`, ssid + ' Wi-Fi');
+}
+
+function generateText() {
+  const text = document.getElementById('f-text').value.trim();
+  if (!text) { showToast('⚠️ Text required', 'error'); return; }
+  if (text.length > 2000) {
+    showToast(`⚠️ Text too long (${text.length} chars) — max ~2000 for reliable QR`, 'error', 4000);
+    return;
+  }
+  makeQR(text, text);
+}
+
+function generateURL(type) {
+  const urlVal = document.getElementById('f-url') ? document.getElementById('f-url').value.trim() : '';
+  const file = window['_file_'+type];
+  if (!urlVal && !file) { showToast('⚠️ URL or file required', 'error'); return; }
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = e.target.result;
+      if (data.length > MAX_FILE_BYTES * 1.4) { // account for base64 overhead
+        showToast(`⚠️ ${t.fileTooLarge||'File too large'} (${formatBytes(file.size)}) — max is 2 KB. ${t.useUrlInstead||'Use a URL link instead.'}`, 'error', 5000);
+        return;
+      }
+      makeQR(data, file.name);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    makeQR(urlVal, urlVal);
+  }
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qr-display canvas');
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = 'qr-code.png'; a.href = canvas.toDataURL(); a.click();
+  showToast('✅ Downloaded!', 'success');
+}
+
+async function copyQRImage() {
+  const canvas = document.querySelector('#qr-display canvas');
+  if (!canvas) return;
+  if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+    showToast('⚠️ Clipboard image copy not supported here — use Download instead', 'error', 3500);
+    return;
+  }
+  try {
+    canvas.toBlob(async blob => {
+      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+      showToast('✅ Copied to clipboard!', 'success');
+    });
+  } catch { showToast('⚠️ Copy not supported in this browser', 'error'); }
+}
+
+function resetQR() {
+  document.getElementById('qr-result-area').classList.add('hidden');
+  closeInlineForm();
+}
+
+// ── FIX 3: PERMISSION MODAL ───────────────────────────────
+function requestPermission(type, callback) {
+  pendingPermissionCallback = callback;
+  const configs = {
+    camera:{ icon:'📷', titleKey:'permCameraTitle', descKey:'permCameraDesc' },
+    files:{ icon:'📁', titleKey:'permFilesTitle', descKey:'permFilesDesc' }
+  };
+  const cfg = configs[type] || configs.camera;
+  document.getElementById('perm-icon').textContent = cfg.icon;
+  document.getElementById('perm-title').textContent = t[cfg.titleKey] || cfg.titleKey;
+  document.getElementById('perm-desc').textContent = t[cfg.descKey] || cfg.descKey;
+  document.getElementById('permission-modal').classList.remove('hidden');
+}
+
+function grantPermission() {
+  document.getElementById('permission-modal').classList.add('hidden');
+  if (pendingPermissionCallback) {
+    const cb = pendingPermissionCallback;
+    pendingPermissionCallback = null;
+    cb();
+  }
+}
+
+function denyPermission() {
+  document.getElementById('permission-modal').classList.add('hidden');
+  pendingPermissionCallback = null;
+}
+
+// ── SCANNER ───────────────────────────────────────────────
+function triggerScanUpload() {
+  document.getElementById('scan-file-input').click();
+}
+
+async function startCameraImpl() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('⚠️ Camera not available — make sure the site is loaded over HTTPS', 'error', 4500);
+    return;
+  }
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' } });
+    const video = document.getElementById('scanner-video');
+    video.srcObject = scanStream;
+    document.getElementById('scanner-video-wrap').classList.remove('hidden');
+    document.getElementById('start-camera-btn').classList.add('hidden');
+    document.getElementById('stop-camera-btn').classList.remove('hidden');
+    scanInterval = setInterval(() => scanFrame(video), 300);
+  } catch(e) {
+    showToast('⚠️ Camera access denied. Please allow it in your browser settings.', 'error', 4000);
+  }
+}
+
+function stopCamera() {
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  clearInterval(scanInterval);
+  document.getElementById('scanner-video-wrap').classList.add('hidden');
+  document.getElementById('start-camera-btn').classList.remove('hidden');
+  document.getElementById('stop-camera-btn').classList.add('hidden');
+}
+
+function scanFrame(video) {
+  const canvas = document.getElementById('scanner-canvas');
+  const w = video.videoWidth, h = video.videoHeight;
+  if (!w || !h) return;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const code = jsQR(imgData.data, w, h);
+  if (code && code.data !== lastScanResult) {
+    lastScanResult = code.data;
+    showScanResult(code.data);
+    stopCamera();
+  }
+}
+
+function scanFromFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const imgData = canvas.getContext('2d').getImageData(0, 0, img.width, img.height);
+    const code = jsQR(imgData.data, img.width, img.height);
+    URL.revokeObjectURL(url);
+    if (code) showScanResult(code.data);
+    else showToast('⚠️ No QR code found in image', 'error');
+  };
+  img.src = url;
+}
+
+function showScanResult(text) {
+  document.getElementById('scan-result-text').textContent = text;
+  document.getElementById('scan-result').classList.add('show');
+  const openBtn = document.getElementById('open-link-btn');
+  (text.startsWith('http://') || text.startsWith('https://'))
+    ? openBtn.classList.remove('hidden')
+    : openBtn.classList.add('hidden');
+  showToast('✅ QR scanned!', 'success');
+}
+
+function copyScanResult() {
+  navigator.clipboard.writeText(document.getElementById('scan-result-text').textContent)
+    .then(() => showToast('✅ Copied!', 'success'));
+}
+
+function openScanResult() {
+  window.open(document.getElementById('scan-result-text').textContent, '_blank');
+}
+
+// ── TABS ──────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'scan' && scanStream) stopCamera();
+}
+
+// ── SETTINGS ──────────────────────────────────────────────
+document.getElementById('settings-btn').onclick = () => {
+  document.getElementById('settings-panel').classList.add('open');
+  document.getElementById('settings-overlay').classList.add('open');
+};
+document.getElementById('settings-close-btn').onclick = closeSettings;
+document.getElementById('settings-overlay').onclick = closeSettings;
+function closeSettings() {
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+document.getElementById('qr-dark-color').addEventListener('input', function() {
+  qrDarkColor = this.value;
+  document.getElementById('dark-hex').textContent = this.value;
+});
+document.getElementById('qr-light-color').addEventListener('input', function() {
+  qrLightColor = this.value;
+  document.getElementById('light-hex').textContent = this.value;
+});
+document.getElementById('qr-size').addEventListener('input', function() {
+  qrSize = parseInt(this.value);
+  document.getElementById('size-label').textContent = this.value + 'px';
+});
+
+// ── DRAG & DROP SCAN ──────────────────────────────────────
+const uploadDrop = document.getElementById('upload-scan-drop');
+uploadDrop.addEventListener('dragover', e => { e.preventDefault(); uploadDrop.style.borderColor='var(--accent)'; });
+uploadDrop.addEventListener('dragleave', () => { uploadDrop.style.borderColor=''; });
+uploadDrop.addEventListener('drop', e => {
+  e.preventDefault(); uploadDrop.style.borderColor='';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const input = document.getElementById('scan-file-input');
+    const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+    scanFromFile({ target: input });
+  }
+});
+
+// ── TOAST ──────────────────────────────────────────────────
+function showToast(msg, type='', duration=2800) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg; toast.className = 'toast show ' + type;
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.className = 'toast'; }, duration);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+renderTypeGrid();
+</script>
+</body>
+</html>
